@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retina Star Hunt 26 - Premium Exam Portal</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <style>
+        :root { --primary: #1a5f7a; --secondary: #e74c3c; --success: #27ae60; --bg: #f0f2f5; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh; }
+        .container { background: white; width: 100%; max-width: 850px; padding: 40px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border-top: 8px solid var(--primary); }
+        .hidden { display: none; }
+        h1 { color: var(--primary); text-align: center; font-size: 28px; margin-bottom: 10px; }
+        .sub-text { text-align: center; color: #666; margin-bottom: 30px; }
+        .input-group { margin-bottom: 20px; }
+        label { font-weight: bold; color: #444; display: block; margin-bottom: 8px; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 14px; border: 2px solid #ddd; border-radius: 10px; box-sizing: border-box; font-size: 16px; transition: 0.3s; }
+        input:focus { border-color: var(--primary); outline: none; }
+        .btn { background: var(--primary); color: white; border: none; padding: 16px; border-radius: 10px; cursor: pointer; width: 100%; font-size: 18px; font-weight: bold; transition: 0.3s; margin-top: 10px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        #timer { position: sticky; top: 10px; background: rgba(255,255,255,0.95); padding: 15px; text-align: center; font-weight: bold; font-size: 24px; color: var(--secondary); border: 2px solid var(--secondary); border-radius: 50px; z-index: 100; backdrop-filter: blur(5px); margin-bottom: 20px; }
+        .question { margin-bottom: 30px; padding: 20px; border-radius: 12px; border-left: 6px solid var(--primary); background: #f9f9f9; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .question p { font-size: 18px; font-weight: 600; color: #333; margin-top: 0; }
+        .options label { display: block; padding: 12px 15px; margin: 8px 0; border: 1px solid #eee; border-radius: 8px; cursor: pointer; transition: 0.2s; background: white; }
+        .options label:hover { background: #eef2f3; border-color: #cbd5e0; }
+        .options input { margin-right: 12px; transform: scale(1.2); }
+        #leaderboardTable { width: 100%; border-collapse: collapse; margin-top: 25px; background: white; border-radius: 10px; overflow: hidden; }
+        #leaderboardTable th { background: var(--primary); color: white; padding: 15px; text-align: left; }
+        #leaderboardTable td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .result-summary { text-align: center; padding: 20px; background: #e8f5e9; border-radius: 15px; margin-bottom: 25px; }
+    </style>
+</head>
+<body>
+
+<div class="container" id="auth-box">
+    <h1>Retina Star Hunt '26</h1>
+    <p class="sub-text">ময়মনসিংহ ব্রাঞ্চ স্পেশাল মক টেস্ট (১০০ MCQ)</p>
+    <div class="input-group">
+        <label>শিক্ষার্থীর পুরো নাম:</label>
+        <input type="text" id="userName" placeholder="আপনার নাম এখানে লিখুন">
+    </div>
+    <div class="input-group">
+        <label>SSC রোল নম্বর:</label>
+        <input type="number" id="userRoll" placeholder="রোল নম্বর দিন">
+    </div>
+    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; font-size: 14px; margin-bottom: 20px; color: #856404;">
+        ⚠️ <b>নির্দেশনা:</b> ১০০টি প্রশ্নের জন্য ৬০ মিনিট সময় পাবেন। প্রতিটি ভুলের জন্য ০.২৫ নম্বর কাটা যাবে।
+    </div>
+    <button class="btn" onclick="startExam()">পরীক্ষা শুরু করুন</button>
+</div>
+
+<div class="container hidden" id="exam-box">
+    <div id="timer">সময় বাকি: 60:00</div>
+    <div id="questions-container"></div>
+    <button class="btn" onclick="submitExam()" style="background: var(--success); margin-top: 30px;">ফাইনাল সাবমিট</button>
+</div>
+
+<div class="container hidden" id="result-box">
+    <h1>অভিনন্দন! আপনার ফলাফল</h1>
+    <div class="result-summary">
+        <div id="score-display" style="font-size: 40px; font-weight: 800; color: var(--success);"></div>
+        <p id="detail-display" style="color: #666; font-size: 16px;"></p>
+    </div>
+    <button class="btn" onclick="showLeaderboard()">মেধা তালিকা (Leaderboard)</button>
+</div>
+
+<div class="container hidden" id="admin-box">
+    <h1>🏆 মেধা তালিকা (Top Performers)</h1>
+    <table id="leaderboardTable">
+        <thead>
+            <tr><th>র‍্যাঙ্ক</th><th>রোল</th><th>নাম</th><th>স্কোর</th></tr>
+        </thead>
+        <tbody id="leaderboardBody"></tbody>
+    </table>
+    <button class="btn" onclick="location.reload()" style="background: #555; margin-top: 30px;">আবার পরীক্ষা দিন</button>
+</div>
+
+<script>
+// --- Firebase Configuration ---
+const firebaseConfig = {
+  apiKey: "AIzaSyB9hqyxFgrcn6Pu1AM3h7n15f6UMuuaWyk",
+  authDomain: "puranghatcollege-1faa9.firebaseapp.com",
+  databaseURL: "https://puranghatcollege-1faa9-default-rtdb.firebaseio.com",
+  projectId: "puranghatcollege-1faa9",
+  storageBucket: "puranghatcollege-1faa9.firebasestorage.app",
+  messagingSenderId: "393347326332",
+  appId: "1:393347326332:web:948a0f83ec994fdd2404f9",
+  measurementId: "G-QL8194CG78"
+};
+
+firebase.initializeApp(firebaseConfig);
+// Firestore-এর বদলে এটি ব্যবহার করুন
+const db = firebase.database();
+
+const questions = [
+        // জীববিজ্ঞান (Biology) - ২০টি
+        { q: "১. রক্তে হিমোগ্লোবিনের কাজ কী?", a: "অক্সিজেন পরিবহন করা", options: ["অক্সিজেন পরিবহন করা", "রোগ প্রতিরোধ করা", "রক্ত জমাট বাঁধা", "কার্বন-ডাই-অক্সাইড বের করা"] },
+        { q: "২. মানবদেহের দীর্ঘতম অস্থির নাম কী?", a: "ফিমার", options: ["হিউমেরাস", "টিবিয়া", "ফিমার", "ফ্যালাঞ্জেস"] },
+        { q: "৩. কোষের পাওয়ার হাউস কোনটি?", a: "মাইটোকন্ড্রিয়া", options: ["নিউক্লিয়াস", "গলগি বডি", "মাইটোকন্ড্রিয়া", "লাইসোজোম"] },
+        { q: "৪. উদ্ভিদের পানি পরিবহনের টিস্যু কোনটি?", a: "জাইলেম", options: ["ফ্লোয়েম", "জাইলেম", "প্যারেনকাইমা", "কোলেনকাইমা"] },
+        { q: "৫. কোন ভিটামিনের অভাবে রাতকানা রোগ হয়?", a: "ভিটামিন এ", options: ["ভিটামিন বি", "ভিটামিন সি", "ভিটামিন ডি", "ভিটামিন এ"] },
+        { q: "৬. লোহিত রক্তকণিকার আয়ুষ্কাল কত দিন?", a: "১২০ দিন", options: ["৬০ দিন", "৯০ দিন", "১২০ দিন", "১৫০ দিন"] },
+        { q: "৭. সালোকসংশ্লেষণ প্রক্রিয়ায় উপজাত হিসেবে কী নির্গত হয়?", a: "অক্সিজেন", options: ["কার্বন ডাই অক্সাইড", "অক্সিজেন", "নাইট্রোজেন", "মিথেন"] },
+        { q: "৮. ডিএনএ-র পূর্ণরূপ কী?", a: "Deoxyribonucleic Acid", options: ["Deoxyribonucleic Acid", "Deribonucleic Acid", "Dinucleic Acid", "Deoxynucleic Acid"] },
+        { q: "৯. কোন অঙ্গ রক্ত পরিষ্কার করে?", a: "বৃক্ক", options: ["যকৃৎ", "ফুসফুস", "বৃক্ক", "হৃদপিণ্ড"] },
+        { q: "১০. হৃদপিণ্ডের আবরণীর নাম কী?", a: "পেরিকার্ডিয়াম", options: ["পেরিকার্ডিয়াম", "প্লুরা", "পেরিটোনিয়াম", "স্ক্লেরা"] },
+        { q: "১১. পিত্তরস কোথা থেকে নিঃসৃত হয়?", a: "যকৃৎ", options: ["অগ্ন্যাশয়", "যকৃৎ", "পাকস্থলী", "ক্ষুদ্রান্ত্র"] },
+        { q: "১২. ব্যাকটেরিয়া কে আবিষ্কার করেন?", a: "লিউয়েন হুক", options: ["রবার্ট হুক", "লুই পাস্তুর", "লিউয়েন হুক", "এডওয়ার্ড জেনার"] },
+        { q: "১৩. পেশি ও হাড়ের সংযোগকারী টিস্যুকে কী বলে?", a: "টেনডন", options: ["লিগামেন্ট", "টেনডন", "কার্টিলেজ", "প্লাজমা"] },
+        { q: "১৪. মানবদেহে করোটিক স্নায়ুর সংখ্যা কত?", a: "১২ জোড়া", options: ["১০ জোড়া", "১২ জোড়া", "২৪ জোড়া", "৩১ জোড়া"] },
+        { q: "১৫. ইউরিয়া কোথায় তৈরি হয়?", a: "যকৃৎ", options: ["বৃক্ক", "যকৃৎ", "ফুসফুস", "চর্ম"] },
+        { q: "১৬. পেনিসিলিন কে আবিষ্কার করেন?", a: "আলেকজান্ডার ফ্লেমিং", options: ["রবার্ট কোচ", "আলেকজান্ডার ফ্লেমিং", "গ্যালিলিও", "নিউটন"] },
+        { q: "১৭. কোনটি একবীজপত্রী উদ্ভিদ?", a: "ধান", options: ["আম", "কাঁঠাল", "ধান", "লিচু"] },
+        { q: "১৮. ইনসুলিন কোথা থেকে ক্ষরিত হয়?", a: "অগ্ন্যাশয়", options: ["পিটুইটারি", "থাইরয়েড", "অগ্ন্যাশয়", "অ্যাড্রিনাল"] },
+        { q: "১৯. নিচের কোনটি ভাইরাসজনিত রোগ?", a: "এইডস", options: ["কলেরা", "যক্ষ্মা", "এইডস", "টাইফয়েড"] },
+        { q: "২০. আধুনিক শ্রেণিবিন্যাসের জনক কে?", a: "ক্যারোলাস লিনিয়াস", options: ["অ্যারিস্টটল", "ডারউইন", "ক্যারোলাস লিনিয়াস", "মেন্ডেল"] },
+
+        // পদার্থবিজ্ঞান (Physics) - ২০টি
+        { q: "২১. বলের একক কী?", a: "নিউটন", options: ["প্যাসকেল", "জুল", "নিউটন", "ওয়াট"] },
+        { q: "২২. মহাকর্ষীয় ধ্রুবক G এর মান কত?", a: "6.673 x 10^-11", options: ["9.8", "6.673 x 10^-11", "6.626 x 10^-34", "3 x 10^8"] },
+        { q: "২৩. ক্ষমতার একক কোনটি?", a: "ওয়াট", options: ["ভোল্ট", "অ্যাম্পিয়ার", "ওয়াট", "ওহম"] },
+        { q: "২৪. কোন দর্পণে প্রতিবিম্ব সবসময় সোজা ও ছোট হয়?", a: "উত্তল", options: ["অবতল", "উত্তল", "সমতল", "গোলকীয়"] },
+        { q: "২৫. শব্দের বেগ সবচেয়ে বেশি কোথায়?", a: "কঠিন মাধ্যমে", options: ["বায়ুতে", "পানিতে", "শূন্যস্থানে", "কঠিন মাধ্যমে"] },
+        { q: "২৬. রোধের একক কী?", a: "ওহম", options: ["ভোল্ট", "ওহম", "কুলম্ব", "ফ্যারাড"] },
+        { q: "২৭. ১ অশ্বক্ষমতা (HP) সমান কত ওয়াট?", a: "৭৪৬ ওয়াট", options: ["৫০০ ওয়াট", "৭৪৬ ওয়াট", "১০০০ ওয়াট", "৮৪০ ওয়াট"] },
+        { q: "২৮. নিউটনের গতির ২য় সূত্র থেকে কীসের ধারণা পাওয়া যায়?", a: "বল", options: ["জড়তা", "বল", "ক্রিয়া-প্রতিক্রিয়া", "বেগ"] },
+        { q: "২৯. কোনটি মৌলিক রাশি?", a: "ভর", options: ["বেগ", "ভর", "কাজ", "তাপ"] },
+        { q: "৩০. পৃথিবীর কেন্দ্রে g এর মান কত?", a: "শূন্য", options: ["৯.৮", "১.৬", "শূন্য", "অসীম"] },
+        { q: "৩১. শব্দোত্তর তরঙ্গের কম্পাঙ্ক কত?", a: "20,000 Hz এর বেশি", options: ["20 Hz এর নিচে", "20-20,000 Hz", "20,000 Hz এর বেশি", "10,000 Hz"] },
+        { q: "৩২. লেন্সের ক্ষমতার একক কী?", a: "ডায়োপ্টার", options: ["ওয়াট", "ডায়োপ্টার", "ক্যান্ডেলা", "লাক্স"] },
+        { q: "৩৩. আলোর প্রতিফলনের সূত্র কয়টি?", a: "২টি", options: ["১টি", "২টি", "৩টি", "৪টি"] },
+        { q: "৩৪. তেজস্ক্রিয়তা কে আবিষ্কার করেন?", a: "হেনরি বেকেরেল", options: ["আইনস্টাইন", "হেনরি বেকেরেল", "মাদাম কুরি", "রাদারফোর্ড"] },
+        { q: "৩৫. কাজ ও শক্তির একক কী?", a: "জুল", options: ["নিউটন", "প্যাসকেল", "জুল", "ভোল্ট"] },
+        { q: "৩৬. কোনটি পরিবাহী পদার্থ?", a: "তামা", options: ["রাবার", "কাঠ", "তামা", "কাঁচ"] },
+        { q: "৩৭. পরম শূন্য তাপমাত্রা কত?", a: "-২৭৩.১৫° সেলসিয়াস", options: ["০° সেলসিয়াস", "১০০° সেলসিয়াস", "-২৭৩.১৫° সেলসিয়াস", "২৭৩° কেলভিন"] },
+        { q: "৩৮. বায়ুমণ্ডলের চাপ মাপার যন্ত্র কোনটি?", a: "ব্যারোমিটার", options: ["থার্মোমিটার", "ব্যারোমিটার", "ম্যানোমিটার", "হাইড্রোমিটার"] },
+        { q: "৩৯. লিভার কোন শ্রেণীর লিভারে বল মাঝখানে থাকে?", a: "৩য় শ্রেণী", options: ["১ম শ্রেণী", "২য় শ্রেণী", "৩য় শ্রেণী", "কোনটিই নয়"] },
+        { q: "৪০. বৃষ্টির ফোঁটা গোলাকার হওয়ার কারণ কী?", a: "পৃষ্ঠটান", options: ["সান্দ্রতা", "পৃষ্ঠটান", "বায়ুর চাপ", "মহাকর্ষ"] },
+
+        // রসায়ন (Chemistry) - ২০টি
+        { q: "৪১. আধুনিক পর্যায় সারণির ভিত্তি কী?", a: "পারমাণবিক সংখ্যা", options: ["পারমাণবিক ভর", "যোজনী", "পারমাণবিক সংখ্যা", "আইসোটোপ"] },
+        { q: "৪২. খাবার লবণের রাসায়নিক নাম কী?", a: "সোডিয়াম ক্লোরাইড", options: ["সোডিয়াম কার্বনেট", "সোডিয়াম ক্লোরাইড", "ক্যালসিয়াম ক্লোরাইড", "পটাশিয়াম ক্লোরাইড"] },
+        { q: "৪৩. লোহার মরিচার সংকেত কোনটি?", a: "Fe2O3.nH2O", options: ["FeO", "Fe3O4", "Fe2O3.nH2O", "Fe(OH)3"] },
+        { q: "৪৪. রাজ অম্ল (Aqua Regia) তৈরিতে কোন দুটি অ্যাসিড ব্যবহৃত হয়?", a: "HCl ও HNO3", options: ["HCl ও H2SO4", "HCl ও HNO3", "HNO3 ও H2SO4", "H2SO4 ও CH3COOH"] },
+        { q: "৪৫. গ্রাফাইট কার্বনের একটি কী?", a: "রূপভেদ", options: ["যৌগ", "সংকর", "রূপভেদ", "আইসোবার"] },
+        { q: "৪৬. দার্শনিকের উল কাকে বলে?", a: "ZnO", options: ["CaO", "MgO", "ZnO", "PbO"] },
+        { q: "৪৭. এলপিজি (LPG) গ্যাসের প্রধান উপাদান কী?", a: "বিউটেন ও প্রোপেন", options: ["মিথেন", "বিউটেন ও প্রোপেন", "ইথেন", "হাইড্রোজেন"] },
+        { q: "৪৮. সবচেয়ে সক্রিয় ধাতু কোনটি?", a: "পটাশিয়াম", options: ["সোনা", "লোহা", "পটাশিয়াম", "সোডিয়াম"] },
+        { q: "৪৯. কার্বন ডাই অক্সাইড চুনের পানিকে কী করে?", a: "ঘোলা করে", options: ["স্বচ্ছ রাখে", "ঘোলা করে", "নীল করে", "লাল করে"] },
+        { q: "৫০. পরমাণুর নিউক্লিয়াসে কী কী থাকে?", a: "প্রোটন ও নিউট্রন", options: ["প্রোটন ও ইলেকট্রন", "প্রোটন ও নিউট্রন", "ইলেকট্রন ও নিউট্রন", "শুধু প্রোটন"] },
+        { q: "৫১. ভিনেগারে কত ভাগ অ্যাসিটিক অ্যাসিড থাকে?", a: "৪-১০%", options: ["২-৩%", "৪-১০%", "২০-৩০%", "৫০%"] },
+        { q: "৫২. ড্রাই আইস (Dry Ice) কী?", a: "কঠিন CO2", options: ["কঠিন বরফ", "কঠিন CO2", "কঠিন নাইট্রোজেন", "তরল হিলিয়াম"] },
+        { q: "৫৩. দার্শনিকের পাথর আসলে কী?", a: "জিঙ্ক অক্সাইড", options: ["জিঙ্ক অক্সাইড", "সোনা", "হীরা", "অ্যালুমিনা"] },
+        { q: "৫৪. পিএইচ (pH) স্কেলের সীমা কত?", a: "০-১৪", options: ["১-১০", "০-১৪", "১-১৪", "০-৭"] },
+        { q: "৫৫. লাফিং গ্যাসের রাসায়নিক সংকেত কোনটি?", a: "N2O", options: ["NO2", "N2O", "NO", "NH3"] },
+        { q: "৫৬. সোনা গলাতে কোন অ্যাসিড ব্যবহার করা হয়?", a: "অ্যাকুয়া রেজিয়া", options: ["সালফিউরিক অ্যাসিড", "নাইট্রিক অ্যাসিড", "অ্যাকুয়া রেজিয়া", "হাইড্রোক্লোরিক অ্যাসিড"] },
+        { q: "৫৭. পানির স্থায়ী ক্ষরতার কারণ কী?", a: "ক্যালসিয়াম ও ম্যাগনেসিয়াম সালফেট", options: ["কার্বনেট লবণ", "ক্যালসিয়াম ও ম্যাগনেসিয়াম সালফেট", "সোডিয়াম ক্লোরাইড", "পটাশিয়াম নাইট্রেট"] },
+        { q: "৫৮. হীরা কেন উজ্জ্বল দেখায়?", a: "পূর্ণ অভ্যন্তরীণ প্রতিফলন", options: ["প্রতিসরণ", "প্রতিফলন", "পূর্ণ অভ্যন্তরীণ প্রতিফলন", "বিক্ষেপণ"] },
+        { q: "৫৯. সাবানের প্রধান রাসায়নিক উপাদান কী?", a: "সোডিয়াম স্টিয়ারেট", options: ["সোডিয়াম ক্লোরাইড", "সোডিয়াম স্টিয়ারেট", "সোডিয়াম সালফেট", "গ্লিসারিন"] },
+        { q: "৬০. নিচের কোনটি নোবেল গ্যাস?", a: "হিলিয়াম", options: ["নাইট্রোজেন", "অক্সিজেন", "হাইড্রোজেন", "হিলিয়াম"] },
+
+        // ইংরেজি (English) - ২০টি
+        { q: "61. What is the synonym of 'Abundance'?", a: "Plenty", options: ["Scarcity", "Plenty", "Small", "Lack"] },
+        { q: "62. Which one is an example of an Abstract Noun?", a: "Honesty", options: ["Team", "Water", "Honesty", "Book"] },
+        { q: "63. The plural form of 'Ox' is -", a: "Oxen", options: ["Oxes", "Oxen", "Oxens", "Oxs"] },
+        { q: "64. 'To do or die' is a -", a: "Compound sentence", options: ["Simple sentence", "Complex sentence", "Compound sentence", "None"] },
+        { q: "65. Who is the author of 'Hamlet'?", a: "William Shakespeare", options: ["John Milton", "William Shakespeare", "John Keats", "Alexander Pope"] },
+        { q: "66. Antonym of 'Optimistic' is -", a: "Pessimistic", options: ["Pessimistic", "Hopeful", "Positive", "Careful"] },
+        { q: "67. Identify the correct spelling:", a: "Lieutenant", options: ["Lutenant", "Lieutenant", "Lieutenent", "Leutenant"] },
+        { q: "68. 'Out and out' means -", a: "Thoroughly", options: ["Outside", "Thoroughly", "Frequently", "Suddenly"] },
+        { q: "69. What is the verb of 'Decision'?", a: "Decide", options: ["Decisive", "Decide", "Decidedly", "Decisions"] },
+        { q: "70. He is __ M.B.B.S.", a: "an", options: ["a", "an", "the", "no article"] },
+        { q: "71. 'Call it a day' means -", a: "Stop working", options: ["Start working", "Stop working", "Good day", "Daily routine"] },
+        { q: "72. Which one is feminine gender?", a: "Mare", options: ["Horse", "Ox", "Mare", "Dog"] },
+        { q: "73. The teacher said, 'The earth moves round the sun'. (Indirect)", a: "The teacher said that the earth moves round the sun.", options: ["The teacher told the earth moved round the sun.", "The teacher said that the earth moves round the sun.", "The teacher asked if the earth moved.", "None"] },
+        { q: "74. Look __ the dictionary.", a: "up in", options: ["at", "for", "up in", "after"] },
+        { q: "75. 'Once in a blue moon' means -", a: "Very rarely", options: ["Daily", "Always", "Very rarely", "At night"] },
+        { q: "76. What kind of noun is 'Army'?", a: "Collective", options: ["Proper", "Common", "Collective", "Material"] },
+        { q: "77. 'Man is mortal.' Make it negative.", a: "No man is immortal.", options: ["Man is not mortal.", "No man is immortal.", "Every man is mortal.", "Man is never mortal."] },
+        { q: "78. He has been ill __ Monday last.", a: "since", options: ["for", "since", "from", "at"] },
+        { q: "79. Synonym of 'Beautiful' is -", a: "Pretty", options: ["Ugly", "Pretty", "Smart", "Brave"] },
+        { q: "80. A person who writes poems is a -", a: "Poet", options: ["Author", "Poet", "Dramatist", "Novelist"] },
+
+        // বাংলা (Bengali) - ২০টি
+        { q: "৮১. 'গীতাঞ্জলি' কাব্যগ্রন্থের রচয়িতা কে?", a: "রবীন্দ্রনাথ ঠাকুর", options: ["কাজী নজরুল ইসলাম", "রবীন্দ্রনাথ ঠাকুর", "জসীমউদ্দীন", "জীবনানন্দ দাশ"] },
+        { q: "৮২. 'আমার দেখা নয়াচীন' কার লেখা?", a: "শেখ মুজিবুর রহমান", options: ["তাজউদ্দীন আহমদ", "শেখ মুজিবুর রহমান", "মওলানা ভাসানী", "আবুল মনসুর আহমদ"] },
+        { q: "৮৩. বাংলা ভাষার আদি নিদর্শনের নাম কী?", a: "চর্যাপদ", options: ["শ্রীকৃষ্ণকীর্তন", "চর্যাপদ", "মঙ্গলকাব্য", "বৈষ্ণব পদাবলী"] },
+        { q: "৮৪. 'ধ্বনি' নির্দেশক চিহ্নকে কী বলে?", a: "বর্ণ", options: ["অক্ষর", "শব্দ", "বর্ণ", "বাক্য"] },
+        { q: "৮৫. কোনটি মৌলিক স্বরধ্বনি?", a: "ই", options: ["ঐ", "ঔ", "ই", "ঋ"] },
+        { q: "৮৬. 'চাঁদ' শব্দের সমার্থক কোনটি?", a: "বিধু", options: ["ভাস্কর", "বিধু", "তপন", "অর্ণব"] },
+        { q: "৮৭. সন্ধির প্রধান সুবিধা কী?", a: "উচ্চারণের সুবিধা", options: ["লেখার সুবিধা", "উচ্চারণের সুবিধা", "পড়ার সুবিধা", "শব্দের সুবিধা"] },
+        { q: "৮৮. 'পদ্মা নদীর মাঝি' উপন্যাসের লেখক কে?", a: "মানিক বন্দ্যোপাধ্যায়", options: ["শরৎচন্দ্র চট্টোপাধ্যায়", "মানিক বন্দ্যোপাধ্যায়", "বঙ্কিমচন্দ্র চট্টোপাধ্যায়", "বিভূতিভূষণ বন্দ্যোপাধ্যায়"] },
+        { q: "৮৯. বিরাম চিহ্নের প্রবর্তক কে?", a: "ঈশ্বরচন্দ্র বিদ্যাসাগর", options: ["রবীন্দ্রনাথ ঠাকুর", "ঈশ্বরচন্দ্র বিদ্যাসাগর", "প্রমথ চৌধুরী", "প্যারীচাঁদ মিত্র"] },
+        { q: "৯০. 'অগ্নিবীণা' কাব্যগ্রন্থের প্রথম কবিতা কোনটি?", a: "প্রলয়োল্লাস", options: ["বিদ্রোহী", "ধূমকেতু", "প্রলয়োল্লাস", "রক্তাম্বরধারিণী মা"] },
+        { q: "৯১. শুদ্ধ বানান কোনটি?", a: "মুহূর্ত", options: ["মুহুর্ত", "মুহূর্ত", "মূহুর্ত", "মূহূর্ত"] },
+        { q: "৯২. সমাস কত প্রকার?", a: "৬ প্রকার", options: ["৪ প্রকার", "৫ প্রকার", "৬ প্রকার", "৮ প্রকার"] },
+        { q: "৯৩. 'হাতটান' বাগধারার অর্থ কী?", a: "চুরির অভ্যাস", options: ["কৃপণতা", "চুরির অভ্যাস", "দানশীলতা", "অলসতা"] },
+        { q: "৯৪. কোনটি নিত্য স্ত্রীবাচক শব্দ?", a: "সতীন", options: ["বোন", "সতীন", "মা", "ছাত্রী"] },
+        { q: "৯৫. 'কবর' নাটকটি কার লেখা?", a: "মুনীর চৌধুরী", options: ["জসীমউদ্দীন", "মুনীর চৌধুরী", "শওকত ওসমান", "সেলিম আল দীন"] },
+        { q: "৯৬. বিভক্তিহীন নাম শব্দকে কী বলে?", a: "প্রাতিপদিক", options: ["ধাতু", "প্রাতিপদিক", "উপসর্গ", "অনুসর্গ"] },
+        { q: "৯৭. 'একাদশে বৃহস্পতি' মানে কী?", a: "সৌভাগ্যের বিষয়", options: ["বিপদের আশঙ্কা", "সুসময়ের বন্ধু", "সৌভাগ্যের বিষয়", "বাধাবিপত্তি"] },
+        { q: "৯৮. 'সূর্য' শব্দের প্রতিশব্দ কোনটি?", a: "আদিত্য", options: ["শশাঙ্ক", "আদিত্য", "সুধাংশু", "অম্বুদ"] },
+        { q: "৯৯. 'অপমান' শব্দে 'অপ' উপসর্গটি কী অর্থে ব্যবহৃত?", a: "বিপরীত", options: ["নিকৃষ্ট", "বিপরীত", "অভাব", "সম্যক"] },
+        { q: "১০০. বাংলা সাহিত্যের বিদ্রোহী কবি কে?", a: "কাজী নজরুল ইসলাম", options: ["রবীন্দ্রনাথ ঠাকুর", "কাজী নজরুল ইসলাম", "জীবনানন্দ দাশ", "ফররুখ আহমদ"] }
+    ];
+// বাকি প্রশ্নগুলো ১০০ পর্যন্ত অটো পূরণ (যদি লিস্টে কম থাকে)
+if(questions.length < 100) {
+    for(let i = questions.length + 1; i <= 100; i++) {
+        questions.push({ q: i + ". নমুনা প্রশ্ন " + i, a: "ক", options: ["ক", "খ", "গ", "ঘ"] });
+    }
+}
+
+let timer;
+let timeLeft = 3600;
+
+function startExam() {
+    const name = document.getElementById('userName').value.trim();
+    const roll = document.getElementById('userRoll').value.trim();
+    if(!name || !roll) return alert("দয়া করে নাম এবং রোল নম্বর ইনপুট দিন!");
+
+    document.getElementById('auth-box').classList.add('hidden');
+    document.getElementById('exam-box').classList.remove('hidden');
+    
+    renderQuestions();
+    startTimer();
+}
+
+function renderQuestions() {
+    const container = document.getElementById('questions-container');
+    container.innerHTML = questions.map((item, index) => `
+        <div class="question">
+            <p>${item.q}</p>
+            <div class="options">
+                ${item.options.map(opt => `
+                    <label><input type="radio" name="q${index}" value="${opt}"> ${opt}</label>
+                `).join('')}
+            </div>
+        </div>
+    `).join('');
+}
+
+function startTimer() {
+    timer = setInterval(() => {
+        timeLeft--;
+        let mins = Math.floor(timeLeft / 60);
+        let secs = timeLeft % 60;
+        document.getElementById('timer').innerText = `সময় বাকি: ${mins}:${secs < 10 ? '0'+secs : secs}`;
+        if(timeLeft <= 0) submitExam();
+    }, 1000);
+}
+
+async function submitExam() {
+    clearInterval(timer); // টাইমার বন্ধ করা
+    let correct = 0;
+    let wrong = 0;
+
+    // ১. সঠিক ও ভুল উত্তর গণনা করা
+    questions.forEach((item, index) => {
+        const selected = document.querySelector(`input[name="q${index}"]:checked`);
+        if(selected) {
+            if(selected.value === item.a) correct++;
+            else wrong++;
+        }
+    });
+
+    // ২. নেগেটিভ মার্কিং হিসাব করা
+    const finalScore = (correct - (wrong * 0.25)).toFixed(2);
+    
+    // ৩. ইনপুট থেকে ডাটা নেওয়া
+    const uName = document.getElementById('userName').value.trim();
+    const uRoll = document.getElementById('userRoll').value.trim();
+
+    try {
+        // ৪. Firebase Realtime Database-এ রোল নম্বর অনুযায়ী ডাটা সেভ করা
+        // এখানে .child(uRoll).set() ব্যবহারের ফলে আইডি'র বদলে রোল দেখাবে
+        await db.ref("exam_results").child(uRoll).set({
+            name: uName,
+            roll: uRoll,
+            score: parseFloat(finalScore),
+            timestamp: Date.now()
+        });
+
+        // ৫. স্ক্রিনে রেজাল্ট দেখানো
+        document.getElementById('exam-box').classList.add('hidden');
+        document.getElementById('result-box').classList.remove('hidden');
+        document.getElementById('score-display').innerText = finalScore;
+        document.getElementById('detail-display').innerText = `সঠিক: ${correct} | ভুল: ${wrong} | মোট প্রশ্ন: ১০০`;
+
+    } catch (e) {
+        console.error("Error saving data:", e);
+        alert("ইন্টারনেট সংযোগ চেক করুন! ডাটা সেভ করা যায়নি।");
+    }
+}
+
+function showLeaderboard() {
+    document.getElementById('result-box').classList.add('hidden');
+    document.getElementById('admin-box').classList.remove('hidden');
+    
+    db.ref("exam_results").orderByChild("score").limitToLast(20).on("value", (snapshot) => {
+        const tbody = document.getElementById('leaderboardBody');
+        tbody.innerHTML = "";
+        let results = [];
+        
+        snapshot.forEach((childSnapshot) => {
+            results.push(childSnapshot.val());
+        });
+
+        results.reverse(); // স্কোর অনুযায়ী বড় থেকে ছোট সাজানো
+
+        results.forEach((data, index) => {
+            let rank = index + 1;
+            let crown = "";
+
+            // ১লা, ২য় এবং ৩য় স্থানের জন্য মুকুট বা মেডেল লজিক
+            if (rank === 1) {
+                crown = "👑 "; // গোল্ডেন ক্রাউন
+            } else if (rank === 2) {
+                crown = "🥈 "; // সিলভার মেডেল
+            } else if (rank === 3) {
+                crown = "🥉 "; // ব্রোঞ্জ মেডেল
+            }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-weight:bold">${crown}${rank}</td>
+                    <td>${data.roll}</td>
+                    <td>${data.name}</td>
+                    <td style="font-weight:bold; color:var(--primary)">${data.score}</td>
+                </tr>`;
+        });
+    });
+}
+</script>
+</body>
+</html>

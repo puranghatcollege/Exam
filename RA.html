@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Result Sheet Print</title>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #f4f7f6; padding: 20px; }
+        .admin-container { max-width: 1000px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #1a5f7a; }
+        .controls { text-align: right; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+        th { background-color: #1a5f7a; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        
+        .btn-print {
+            background: #27ae60; color: white; border: none; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;
+        }
+
+        /* প্রিন্ট করার সময় শুধু টেবিলটা দেখাবে */
+        @media print {
+            .btn-print, .controls { display: none; }
+            body { background: white; padding: 0; }
+            .admin-container { box-shadow: none; border: none; width: 100%; max-width: 100%; }
+            th { background-color: #1a5f7a !important; color: white !important; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="admin-container">
+    <h1>Retina Star Hunt '26 - অফিসিয়াল রেজাল্ট শিট</h1>
+    <p style="text-align: center;">ময়মনসিংহ ব্রাঞ্চ</p>
+
+    <div class="controls">
+        <button class="btn-print" onclick="window.print()">রিপোর্ট প্রিন্ট করুন (PDF)</button>
+    </div>
+
+    <table id="resultTable">
+        <thead>
+            <tr>
+                <th>র‍্যাঙ্ক</th>
+                <th>রোল নম্বর</th>
+                <th>শিক্ষার্থীর নাম</th>
+                <th>প্রাপ্ত স্কোর</th>
+                <th>তারিখ</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            </tbody>
+    </table>
+</div>
+
+<script>
+// আপনার Firebase Config (আগের ফাইল থেকে এখানে কপি করুন)
+const firebaseConfig = {
+  apiKey: "AIzaSyB9hqyxFgrcn6Pu1AM3h7n15f6UMuuaWyk",
+  authDomain: "puranghatcollege-1faa9.firebaseapp.com",
+  databaseURL: "https://puranghatcollege-1faa9-default-rtdb.firebaseio.com",
+  projectId: "puranghatcollege-1faa9",
+  storageBucket: "puranghatcollege-1faa9.firebasestorage.app",
+  messagingSenderId: "393347326332",
+  appId: "1:393347326332:web:948a0f83ec994fdd2404f9"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ডাটাবেস থেকে সব রেজাল্ট লোড করা
+function loadAllResults() {
+    const tableBody = document.getElementById('tableBody');
+    
+    // স্কোর অনুযায়ী সাজিয়ে ডাটা আনা (বড় থেকে ছোট)
+    db.ref("exam_results").orderByChild("score").on("value", (snapshot) => {
+        tableBody.innerHTML = "";
+        let results = [];
+        
+        snapshot.forEach((child) => {
+            results.push(child.val());
+        });
+        
+        results.reverse(); // বড় স্কোর উপরে রাখার জন্য
+
+        results.forEach((data, index) => {
+            let date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('bn-BD') : "N/A";
+            let row = `<tr>
+                <td>${index + 1}</td>
+                <td>${data.roll}</td>
+                <td style="text-align: left; padding-left: 20px;">${data.name}</td>
+                <td style="font-weight: bold;">${data.score}</td>
+                <td>${date}</td>
+            </tr>`;
+            tableBody.innerHTML += row;
+        });
+    });
+}
+
+loadAllResults();
+</script>
+
+</body>
+</html>
